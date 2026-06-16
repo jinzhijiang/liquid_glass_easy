@@ -119,8 +119,16 @@ class _LiquidGlassViewState extends State<LiquidGlassView>
     );
 
     _loadShaders().then((_) {
+      // Shader loading is async (MethodChannel). The view may already be
+      // disposed by the time it resolves — bail out so we neither schedule a
+      // post-frame callback nor call `forward()` on a disposed controller.
+      if (!mounted) return;
       WidgetsBinding.instance.addPostFrameCallback((_) async {
         await _captureWidgetSafe();
+        // `_captureWidgetSafe` awaits `endOfFrame`; guard again before
+        // setState so a dispose during that gap can't trigger
+        // "Null check operator used on a null value" on `_element`.
+        if (!mounted) return;
         setState(() {});
       });
       _controller.forward();
